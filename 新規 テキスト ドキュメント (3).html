@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>錬金術師のアトリエ - Alchemy Game</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Quattrocento:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Quattrocento', serif; overflow: hidden; background: #f4ece1; }
+        .font-cinzel { font-family: 'Cinzel', serif; }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #d7ccc8; border-radius: 10px; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // Lucideアイコンのラッパー
+        const Icon = ({ name, size = 24, className = "" }) => {
+            const [iconHtml, setIconHtml] = React.useState("");
+            React.useEffect(() => {
+                const svg = lucide.createIcons({ attrs: { name, size, class: className } });
+            }, [name]);
+            return <i data-lucide={name} className={className} style={{width: size, height: size}}></i>;
+        };
+
+        // ここにあなたのゲームロジックを配置（一部ブラウザ用に調整）
+        const { useState, useEffect, useCallback } = React;
+
+        const RAW_MATERIALS = [
+            { id: 'red_herb', name: '赤の薬草', basePrice: 40, icon: '🌿' },
+            { id: 'blue_herb', name: '青の薬草', basePrice: 60, icon: '🌱' },
+            { id: 'monster_claw', name: '魔物の爪', basePrice: 150, icon: '🦴' },
+            { id: 'magic_water', name: '魔力水', basePrice: 100, icon: '💧' },
+        ];
+
+        const CRAFTED_ITEMS = [
+            { id: 'hp_potion', name: '癒やしのポーション', sellPrice: 250, icon: '🧪', recipe: { red_herb: 2, magic_water: 1 }, description: '傷を癒やす基本の薬。' },
+            { id: 'mp_potion', name: '魔力のポーション', sellPrice: 350, icon: '⚗️', recipe: { blue_herb: 2, magic_water: 1 }, description: '魔力を回復させる青い雫。' },
+            { id: 'strength_elixir', name: '剛力の霊薬', sellPrice: 800, icon: '🍷', recipe: { monster_claw: 1, red_herb: 1, magic_water: 1 }, description: '一時的に筋力を大幅に強化する。' },
+        ];
+
+        // メインコンポーネント (簡略化版)
+        function App() {
+            const [money, setMoney] = useState(1000);
+            const [day, setDay] = useState(1);
+            const [activeTab, setActiveTab] = useState('shop');
+            const [inventory, setInventory] = useState({ red_herb: 8, blue_herb: 5, monster_claw: 2, magic_water: 6, hp_potion: 0, mp_potion: 0, strength_elixir: 0 });
+
+            return (
+                <div className="flex h-screen w-full">
+                    {/* サイドバー */}
+                    <aside className="w-64 bg-[#efe2d0] border-r-4 border-[#3e2723] p-8">
+                        <h1 className="text-2xl font-cinzel font-black text-amber-900 mb-8 text-center">ALCHEMY</h1>
+                        <nav className="space-y-4">
+                            <button onClick={() => setActiveTab('shop')} className={`w-full text-left p-3 font-bold ${activeTab==='shop'?'bg-amber-900 text-white':'text-amber-900'}`}>Shop Floor</button>
+                            <button onClick={() => setActiveTab('market')} className={`w-full text-left p-3 font-bold ${activeTab==='market'?'bg-amber-900 text-white':'text-amber-900'}`}>Market</button>
+                        </nav>
+                        <div className="mt-20 p-4 bg-white/50 rounded shadow-inner">
+                            <p className="text-xs uppercase opacity-50">Gold Reserves</p>
+                            <p className="text-xl font-cinzel font-bold">💰 {money}</p>
+                        </div>
+                    </aside>
+
+                    {/* メイン */}
+                    <main className="flex-1 bg-[#fdfaf6] p-10 overflow-y-auto">
+                        <header className="flex justify-between items-center mb-10 border-b pb-5">
+                            <h2 className="text-3xl font-cinzel font-bold">Day {day}</h2>
+                            <button onClick={() => setDay(day + 1)} className="bg-amber-900 text-white px-6 py-2 rounded font-bold hover:bg-black transition">Next Day</button>
+                        </header>
+
+                        {activeTab === 'shop' && (
+                            <div className="grid grid-cols-3 gap-6">
+                                {RAW_MATERIALS.concat(CRAFTED_ITEMS).map(item => (
+                                    <div key={item.id} className="bg-white p-6 border-2 border-amber-100 rounded-lg shadow-sm">
+                                        <span className="text-4xl">{item.icon}</span>
+                                        <p className="text-sm font-bold mt-2">{item.name}</p>
+                                        <p className="text-2xl font-cinzel font-black">{inventory[item.id] || 0}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {activeTab === 'market' && (
+                            <div className="space-y-4">
+                                {RAW_MATERIALS.map(item => (
+                                    <div key={item.id} className="bg-white p-6 flex justify-between items-center border rounded shadow-sm">
+                                        <div className="flex items-center gap-4">
+                                            <span className="text-4xl">{item.icon}</span>
+                                            <span className="text-xl font-bold">{item.name}</span>
+                                        </div>
+                                        <button 
+                                            onClick={() => { if(money >= item.basePrice) { setMoney(money-item.basePrice); setInventory({...inventory, [item.id]: inventory[item.id]+1}) } }}
+                                            className="bg-amber-800 text-white px-6 py-2 rounded font-bold"
+                                        >
+                                            Buy (G {item.basePrice})
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </main>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
