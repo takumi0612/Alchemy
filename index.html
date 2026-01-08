@@ -67,7 +67,7 @@ const App = () => {
   });
   const [marketPrices, setMarketPrices] = useState({});
   const [logs, setLogs] = useState([]);
-  const [activeTab, setActiveTab] = useState('shop'); // shop, market, alchemy, stats
+  const [activeTab, setActiveTab] = useState('shop');
   const [reputation, setReputation] = useState(30);
   const [ownedUpgrades, setOwnedUpgrades] = useState([]);
   const [customerQueue, setCustomerQueue] = useState([]);
@@ -78,7 +78,7 @@ const App = () => {
     const updatePrices = () => {
       const newPrices = {};
       RAW_MATERIALS.forEach(item => {
-        const flux = 0.7 + Math.random() * 0.6; // 70% to 130%
+        const flux = 0.7 + Math.random() * 0.6;
         newPrices[item.id] = Math.floor(item.basePrice * flux);
       });
       setMarketPrices(newPrices);
@@ -151,7 +151,6 @@ const App = () => {
     });
 
     if (canCraft) {
-      const bonus = ownedUpgrades.includes('cauldron_v2') ? 1 : 0;
       const newInv = { ...inventory };
       Object.entries(potion.recipe).forEach(([ingId, count]) => {
         newInv[ingId] -= count;
@@ -165,7 +164,7 @@ const App = () => {
     }
   };
 
-  // --- サブコンポーネント ---
+  // --- ナビアイテム ---
   const NavItem = ({ id, label, icon: Icon }) => (
     <button
       onClick={() => setActiveTab(id)}
@@ -184,23 +183,32 @@ const App = () => {
   );
 
   return (
-    <div className="w-full min-h-screen bg-[#f4ece1] text-[#3e2723] font-serif selection:bg-amber-200 flex overflow-hidden">
+    <div className="w-full min-h-screen bg-[#f4ece1] text-[#3e2723] flex overflow-hidden">
+      {/* 外部フォントの読み込み */}
       <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Quattrocento:wght@400;700&display=swap" rel="stylesheet" />
       
-      {/* サイドナビゲーション */}
+      {/* 独自CSSスタイルの注入 */}
+      <style>{`
+        .font-cinzel { font-family: 'Cinzel', serif; }
+        body { font-family: 'Quattrocento', serif; }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #d7ccc8; border-radius: 10px; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-in { animation: fadeIn 0.4s ease-out forwards; }
+      `}</style>
+
+      {/* サイドナビ */}
       <aside className="w-64 bg-[#efe2d0] border-r-4 border-[#3e2723] flex flex-col z-20 shadow-2xl">
         <div className="p-8 border-b-2 border-[#3e2723]/10 text-center">
-          <h1 className="text-2xl font-black font-cinzel text-amber-900 leading-none">ALCHEMY</h1>
-          <p className="text-[10px] tracking-[0.3em] font-bold text-amber-800/40 mt-1 uppercase">Atelier</p>
+          <h1 className="text-2xl font-black font-cinzel text-amber-900">ALCHEMY</h1>
+          <p className="text-[10px] tracking-[0.3em] font-bold text-amber-800/40 uppercase">Atelier</p>
         </div>
-        
         <nav className="flex-1 py-8">
           <NavItem id="shop" label="Shop Floor" icon={ShoppingBag} />
           <NavItem id="market" label="Guild Market" icon={ArrowRightLeft} />
           <NavItem id="alchemy" label="The Cauldron" icon={FlaskConical} />
           <NavItem id="stats" label="Ledger" icon={Scroll} />
         </nav>
-
         <div className="p-6 bg-amber-900/5 border-t-2 border-[#3e2723]/10">
           <div className="flex items-center gap-3 mb-2">
             <Coins className="text-amber-600" size={18} />
@@ -210,132 +218,84 @@ const App = () => {
         </div>
       </aside>
 
-      {/* メインコンテンツエリア */}
-      <main className="flex-1 flex flex-col relative min-w-0 bg-[#fdfaf6]">
-        
-        {/* トップバー */}
+      {/* メイン */}
+      <main className="flex-1 flex flex-col bg-[#fdfaf6] relative">
         <header className="h-20 border-b-2 border-[#3e2723]/10 flex items-center justify-between px-10 bg-white/50 backdrop-blur-sm z-10">
           <div className="flex items-center gap-8">
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Day</span>
               <span className="text-2xl font-cinzel font-black text-amber-900">{day}</span>
             </div>
-            <div className="h-8 w-px bg-slate-200" />
             <div className="flex items-center gap-2">
               <TrendingUp size={16} className="text-blue-500" />
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Reputation</span>
               <span className="text-lg font-bold text-slate-700">{reputation.toFixed(0)}%</span>
             </div>
           </div>
-          
           <button 
             onClick={() => setDay(d => d + 1)}
-            className="group flex items-center gap-3 bg-amber-900 text-amber-100 px-8 py-3 font-cinzel font-bold hover:bg-black transition-all shadow-lg hover:shadow-xl active:translate-y-1"
+            className="flex items-center gap-3 bg-amber-900 text-amber-100 px-8 py-3 font-cinzel font-bold hover:bg-black transition-all shadow-lg"
           >
-            Dawn of Next Day <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
+            Dawn of Next Day <ChevronRight size={18} />
           </button>
         </header>
 
-        {/* コンテンツパネル */}
         <div className="flex-1 overflow-y-auto p-10 custom-scrollbar">
-          
           <div className="max-w-4xl mx-auto">
             {activeTab === 'shop' && (
-              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-10">
+              <div className="animate-in space-y-10">
                 <div className="flex items-center justify-between border-b-2 border-amber-900/10 pb-4">
                   <h2 className="text-3xl font-cinzel font-bold">The Counter</h2>
                   <p className="text-sm italic text-amber-800/60">"冒険者たちはあなたの秘薬を待っています..."</p>
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {[...RAW_MATERIALS, ...CRAFTED_ITEMS].map(item => (
-                    <div key={item.id} className="bg-white border-2 border-amber-100 p-6 shadow-sm hover:shadow-md hover:border-amber-400 transition-all group overflow-hidden relative">
+                    <div key={item.id} className="bg-white border-2 border-amber-100 p-6 shadow-sm hover:border-amber-400 transition-all group relative">
                       <div className="flex items-center gap-4 relative z-10">
-                        <span className="text-5xl group-hover:scale-110 transition-transform duration-500">{item.icon}</span>
+                        <span className="text-5xl group-hover:scale-110 transition-transform">{item.icon}</span>
                         <div>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{item.name}</p>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase">{item.name}</p>
                           <p className="text-3xl font-black font-cinzel text-slate-800">{inventory[item.id] || 0}</p>
                         </div>
-                      </div>
-                      <div className="absolute -right-4 -bottom-4 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity">
-                        <Sparkles size={80} />
                       </div>
                     </div>
                   ))}
                 </div>
-
-                <div>
-                  <h3 className="text-sm font-bold text-amber-900/40 mb-6 uppercase tracking-[0.3em] flex items-center gap-2">
+                <div className="space-y-4">
+                  <h3 className="text-sm font-bold text-amber-900/40 uppercase tracking-[0.3em] flex items-center gap-2">
                     <User size={16} /> Travelers in Waiting
                   </h3>
-                  <div className="space-y-4">
-                    {customerQueue.length === 0 ? (
-                      <div className="h-32 flex flex-col items-center justify-center border-4 border-dotted border-amber-900/5 text-slate-300">
-                        <ShoppingBag size={32} className="mb-2 opacity-20" />
-                        <p className="italic">店内に静寂が満ちている...</p>
+                  {customerQueue.map((c, idx) => (
+                    <div key={c.id} className={`p-5 bg-white border-l-8 shadow-sm flex justify-between items-center ${idx === 0 ? 'border-amber-600' : 'border-slate-200 opacity-40'}`}>
+                      <div>
+                        <span className="font-bold text-lg block">{c.name}</span>
+                        <span className="text-[10px] text-slate-400 uppercase font-bold">希望の品を探索中...</span>
                       </div>
-                    ) : (
-                      customerQueue.map((c, idx) => (
-                        <div key={c.id} className={`p-5 bg-white border-l-8 shadow-sm flex justify-between items-center transition-all ${idx === 0 ? 'border-amber-600 translate-x-2' : 'border-slate-200 opacity-40 scale-95'}`}>
-                          <div>
-                            <span className="font-bold text-lg block">{c.name}</span>
-                            <span className="text-[10px] text-slate-400 uppercase font-bold">希望の品を探索中...</span>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            <div className="text-right">
-                              <span className="text-xs text-slate-400 block font-bold uppercase">Requested</span>
-                              <span className="bg-amber-50 text-amber-900 px-4 py-1 rounded-sm border border-amber-100 font-bold flex items-center gap-2">
-                                {[...RAW_MATERIALS, ...CRAFTED_ITEMS].find(i => i.id === c.want).icon} 
-                                {[...RAW_MATERIALS, ...CRAFTED_ITEMS].find(i => i.id === c.want).name}
-                              </span>
-                            </div>
-                            {idx === 0 && <div className="w-2 h-2 rounded-full bg-amber-600 animate-ping" />}
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
+                      <div className="bg-amber-50 text-amber-900 px-4 py-1 rounded-sm border border-amber-100 font-bold flex items-center gap-2">
+                        {[...RAW_MATERIALS, ...CRAFTED_ITEMS].find(i => i.id === c.want).icon} 
+                        {[...RAW_MATERIALS, ...CRAFTED_ITEMS].find(i => i.id === c.want).name}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
 
             {activeTab === 'market' && (
-              <div className="animate-in fade-in slide-in-from-right-4 duration-500 space-y-8">
-                <div className="flex items-center justify-between border-b-2 border-amber-900/10 pb-4">
-                  <h2 className="text-3xl font-cinzel font-bold">Guild Market</h2>
-                  <div className="flex items-center gap-2 text-amber-600 bg-amber-50 px-4 py-1 rounded-full text-xs font-bold border border-amber-100 uppercase tracking-widest">
-                    <ShieldAlert size={14} /> 毎日価格変動
-                  </div>
-                </div>
-
+              <div className="animate-in space-y-8">
+                <h2 className="text-3xl font-cinzel font-bold border-b-2 border-amber-900/10 pb-4">Guild Market</h2>
                 <div className="grid grid-cols-1 gap-4">
                   {RAW_MATERIALS.map(item => (
-                    <div key={item.id} className="bg-white border-2 border-amber-50 p-6 flex items-center justify-between group hover:shadow-xl hover:border-amber-200 transition-all">
+                    <div key={item.id} className="bg-white border-2 border-amber-50 p-6 flex items-center justify-between hover:shadow-xl transition-all">
                       <div className="flex items-center gap-6">
-                        <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center text-5xl group-hover:rotate-12 transition-transform">
-                          {item.icon}
-                        </div>
+                        <div className="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center text-4xl">{item.icon}</div>
                         <div>
                           <p className="font-black text-2xl font-cinzel text-slate-800">{item.name}</p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <Coins size={16} className="text-amber-600" />
-                            <span className="text-xl font-black text-amber-700 font-cinzel">Price: {marketPrices[item.id] || '---'}</span>
-                          </div>
+                          <span className="text-xl font-black text-amber-700 font-cinzel">Price: {marketPrices[item.id]}</span>
                         </div>
                       </div>
                       <div className="flex gap-4">
-                        <button 
-                          onClick={() => handleBuy(item.id, 1)} 
-                          className="bg-slate-50 border border-slate-200 hover:bg-white p-4 font-cinzel font-bold px-8 shadow-sm active:scale-95 transition-all"
-                        >
-                          × 1
-                        </button>
-                        <button 
-                          onClick={() => handleBuy(item.id, 10)} 
-                          className="bg-amber-900 text-amber-100 hover:bg-black p-4 font-cinzel font-bold px-8 shadow-lg active:scale-95 transition-all"
-                        >
-                          × 10
-                        </button>
+                        <button onClick={() => handleBuy(item.id, 1)} className="bg-slate-50 border p-4 font-bold px-8">× 1</button>
+                        <button onClick={() => handleBuy(item.id, 10)} className="bg-amber-900 text-amber-100 p-4 font-bold px-8">× 10</button>
                       </div>
                     </div>
                   ))}
@@ -344,113 +304,52 @@ const App = () => {
             )}
 
             {activeTab === 'alchemy' && (
-              <div className="animate-in zoom-in-95 duration-700 space-y-8">
-                <div className="text-center py-6 bg-indigo-950/5 border-2 border-indigo-900/20 rounded-lg relative overflow-hidden">
-                  <div className="relative z-10">
-                    <h2 className="text-3xl font-cinzel font-bold text-indigo-950">Mystic Cauldron</h2>
-                    <p className="text-xs font-bold text-indigo-700/50 uppercase tracking-[0.4em] mt-1">錬金釜の熱気を感じる...</p>
-                  </div>
-                  <FlaskConical className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-indigo-900 opacity-[0.03] scale-[4]" />
-                </div>
-
-                <div className="grid grid-cols-1 gap-6">
-                  {CRAFTED_ITEMS.map(potion => {
-                    const canCraft = Object.entries(potion.recipe).every(([id, count]) => inventory[id] >= count);
-                    return (
-                      <div key={potion.id} className={`p-8 border-2 transition-all group ${canCraft ? 'bg-white border-indigo-200 shadow-lg' : 'bg-slate-50/50 border-slate-100 opacity-60'}`}>
-                        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-6">
-                          <div className="flex items-center gap-6">
-                            <span className="text-6xl group-hover:scale-110 transition-transform">{potion.icon}</span>
-                            <div>
-                              <h3 className="font-bold text-2xl font-cinzel text-indigo-950">{potion.name}</h3>
-                              <p className="text-sm italic text-slate-500 mt-1">{potion.description}</p>
-                            </div>
+              <div className="animate-in space-y-8">
+                <h2 className="text-3xl font-cinzel font-bold border-b-2 border-amber-900/10 pb-4">Mystic Cauldron</h2>
+                {CRAFTED_ITEMS.map(potion => {
+                  const canCraft = Object.entries(potion.recipe).every(([id, count]) => inventory[id] >= count);
+                  return (
+                    <div key={potion.id} className={`p-8 border-2 ${canCraft ? 'bg-white border-indigo-200 shadow-lg' : 'bg-slate-50/50 opacity-60'}`}>
+                      <div className="flex justify-between items-center mb-6">
+                        <div className="flex items-center gap-6">
+                          <span className="text-6xl">{potion.icon}</span>
+                          <div>
+                            <h3 className="font-bold text-2xl font-cinzel text-indigo-950">{potion.name}</h3>
+                            <p className="text-sm italic text-slate-500">{potion.description}</p>
                           </div>
-                          <button 
-                            disabled={!canCraft}
-                            onClick={() => handleCraft(potion.id)}
-                            className={`px-12 py-4 font-cinzel font-bold text-lg transition-all ${
-                              canCraft 
-                              ? 'bg-indigo-900 text-white hover:bg-indigo-700 shadow-[8px_8px_0px_#1e1b4b] active:translate-y-1 active:shadow-none' 
-                              : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                            }`}
-                          >
-                            調合を開始
-                          </button>
                         </div>
-                        <div className="flex flex-wrap gap-3 pt-6 border-t border-indigo-50">
-                          {Object.entries(potion.recipe).map(([ingId, count]) => {
-                            const ing = RAW_MATERIALS.find(r => r.id === ingId);
-                            const hasEnough = (inventory[ingId] || 0) >= count;
-                            return (
-                              <div key={ingId} className={`text-xs font-bold px-4 py-2 rounded-sm border flex items-center gap-2 ${hasEnough ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-red-50 border-red-100 text-red-700'}`}>
-                                <span className="text-xl">{ing.icon}</span>
-                                <span>{ing.name} ×{count}</span>
-                                <span className="opacity-50">(保有: {inventory[ingId] || 0})</span>
-                              </div>
-                            );
-                          })}
-                        </div>
+                        <button 
+                          disabled={!canCraft}
+                          onClick={() => handleCraft(potion.id)}
+                          className={`px-12 py-4 font-cinzel font-bold ${canCraft ? 'bg-indigo-900 text-white shadow-[4px_4px_0px_#1e1b4b]' : 'bg-slate-200'}`}
+                        >
+                          調合を開始
+                        </button>
                       </div>
-                    );
-                  })}
-                </div>
+                      <div className="flex gap-3 pt-6 border-t border-indigo-50">
+                        {Object.entries(potion.recipe).map(([ingId, count]) => (
+                          <div key={ingId} className="text-xs font-bold px-4 py-2 bg-slate-50 rounded border">
+                            {RAW_MATERIALS.find(r => r.id === ingId).name} ×{count}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
 
             {activeTab === 'stats' && (
-              <div className="animate-in fade-in duration-500 space-y-12">
-                <h2 className="text-3xl font-cinzel font-bold border-b-2 border-amber-900/10 pb-4 uppercase tracking-wider">Business Ledger</h2>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="p-10 bg-white border-2 border-amber-100 shadow-xl relative overflow-hidden group">
-                    <p className="text-[10px] font-bold text-amber-800/40 uppercase tracking-[0.3em] mb-2">Cumulative Revenue</p>
-                    <p className="text-5xl font-black font-cinzel text-amber-900 leading-tight">金貨 {stats.totalSales.toLocaleString()} 枚</p>
-                    <TrendingUp className="absolute -right-4 -bottom-4 text-amber-900 opacity-[0.03] scale-[4] group-hover:scale-[4.5] transition-transform" />
+              <div className="animate-in space-y-12">
+                <h2 className="text-3xl font-cinzel font-bold border-b-2 border-amber-900/10 pb-4">Business Ledger</h2>
+                <div className="grid grid-cols-2 gap-8">
+                  <div className="p-10 bg-white border-2 border-amber-100 shadow-xl">
+                    <p className="text-xs font-bold text-amber-800/40 uppercase">Total Revenue</p>
+                    <p className="text-5xl font-black font-cinzel text-amber-900">金貨 {stats.totalSales}</p>
                   </div>
-                  <div className="p-10 bg-white border-2 border-indigo-100 shadow-xl relative overflow-hidden group">
-                    <p className="text-[10px] font-bold text-indigo-800/40 uppercase tracking-[0.3em] mb-2">Masterful Concoctions</p>
-                    <p className="text-5xl font-black font-cinzel text-indigo-900 leading-tight">{stats.craftedCount} 回</p>
-                    <FlaskConical className="absolute -right-4 -bottom-4 text-indigo-900 opacity-[0.03] scale-[4] group-hover:scale-[4.5] transition-transform" />
-                  </div>
-                </div>
-
-                <div className="bg-[#efe2d0]/30 p-8 rounded-lg border-2 border-[#3e2723]/5">
-                  <h3 className="text-xl font-cinzel font-bold mb-6 flex items-center gap-3">
-                    <FlameKindling className="text-amber-700" size={24} /> Atelier Upgrades
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {UPGRADES.map(u => {
-                      const owned = ownedUpgrades.includes(u.id);
-                      return (
-                        <div key={u.id} className={`p-6 border-2 transition-all flex flex-col justify-between ${owned ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-slate-100'}`}>
-                          <div>
-                            <div className="flex items-center justify-between mb-2">
-                              <p className="font-bold text-lg font-cinzel">{u.name}</p>
-                              {owned && <Sparkles size={16} className="text-emerald-500" />}
-                            </div>
-                            <p className="text-sm text-slate-500 leading-relaxed mb-6">{u.description}</p>
-                          </div>
-                          <button 
-                            disabled={owned || money < u.cost}
-                            onClick={() => {
-                              setMoney(m => m - u.cost);
-                              setOwnedUpgrades(p => [...p, u.id]);
-                              addLog(`設備投資: ${u.name}を導入。お店が一段と立派になりました。`, 'success');
-                            }}
-                            className={`w-full py-3 font-cinzel font-bold tracking-widest transition-all ${
-                              owned 
-                              ? 'text-emerald-600 bg-transparent cursor-default' 
-                              : money >= u.cost 
-                                ? 'bg-amber-900 text-amber-100 hover:bg-black shadow-lg' 
-                                : 'bg-slate-100 text-slate-300 cursor-not-allowed'
-                            }`}
-                          >
-                            {owned ? 'INSTALLED' : `ACQUIRE (金貨 ${u.cost})`}
-                          </button>
-                        </div>
-                      );
-                    })}
+                  <div className="p-10 bg-white border-2 border-indigo-100 shadow-xl">
+                    <p className="text-xs font-bold text-indigo-800/40 uppercase">Crafted Items</p>
+                    <p className="text-5xl font-black font-cinzel text-indigo-900">{stats.craftedCount}</p>
                   </div>
                 </div>
               </div>
@@ -459,78 +358,25 @@ const App = () => {
         </div>
       </main>
 
-      {/* 右サイド: 履歴ログ */}
-      <aside className="w-80 bg-[#efe2d0] border-l-4 border-[#3e2723] flex flex-col z-20 shadow-[-10px_0_30px_rgba(0,0,0,0.05)]">
+      {/* 右ログ */}
+      <aside className="w-80 bg-[#efe2d0] border-l-4 border-[#3e2723] flex flex-col z-20">
         <div className="p-6 bg-[#3e2723] text-amber-100 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <History size={18} className="animate-pulse" />
-            <span className="font-cinzel font-bold tracking-widest uppercase text-sm">Chronicle</span>
+            <History size={18} />
+            <span className="font-cinzel font-bold text-sm tracking-widest">Chronicle</span>
           </div>
-          <span className="text-[10px] opacity-50 font-bold">LIVE</span>
         </div>
-        
-        <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar bg-[#f4ece1]/50 shadow-inner text-sm">
-          {logs.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-4">
-              <Scroll size={48} className="opacity-10" />
-              <p className="italic text-center px-4 uppercase text-[10px] tracking-widest">歴史が始まるのを待っています...</p>
+        <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar text-sm">
+          {logs.map(log => (
+            <div key={log.id} className="border-b border-[#3e2723]/5 pb-3">
+              <span className="text-[9px] text-amber-800/40 font-bold">{log.time}</span>
+              <p className={`font-medium ${log.type === 'error' ? 'text-red-600' : log.type === 'success' ? 'text-emerald-700' : 'text-[#3e2723]'}`}>
+                {log.msg}
+              </p>
             </div>
-          ) : (
-            logs.map(log => (
-              <div key={log.id} className="border-b border-[#3e2723]/5 pb-3 animate-in slide-in-from-right-2">
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-[9px] text-amber-800/40 font-bold">{log.time}</span>
-                  {log.type === 'craft' && <Sparkles size={10} className="text-indigo-400" />}
-                </div>
-                <p className={`leading-relaxed font-medium ${
-                  log.type === 'error' ? 'text-red-600' : 
-                  log.type === 'success' ? 'text-emerald-700' : 
-                  log.type === 'craft' ? 'text-indigo-700 font-bold' : 
-                  'text-[#3e2723]'
-                }`}>
-                  {log.msg}
-                </p>
-              </div>
-            ))
-          )}
-        </div>
-
-        <div className="p-6 bg-white/30 border-t-2 border-[#3e2723]/10 text-center">
-          <p className="text-[9px] text-amber-900/40 italic uppercase tracking-[0.2em]">
-            "Potions for the brave, gold for the wise"
-          </p>
+          ))}
         </div>
       </aside>
-
-      <style>{`
-        body {
-          font-family: 'Quattrocento', serif;
-          overflow: hidden;
-        }
-        .font-cinzel {
-          font-family: 'Cinzel', serif;
-        }
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 5px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #d7ccc8;
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #3e2723;
-        }
-        @keyframes fade-in {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        .animate-in {
-          animation: fade-in 0.4s ease-out forwards;
-        }
-      `}</style>
     </div>
   );
 };
