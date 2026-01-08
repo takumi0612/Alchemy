@@ -1,294 +1,538 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ALCHEMY ATELIER - 完全版</title>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Quattrocento:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Quattrocento', serif; overflow: hidden; background: #f4ece1; color: #3e2723; }
-        .font-cinzel { font-family: 'Cinzel', serif; }
-        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #d7ccc8; border-radius: 10px; }
-        @keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-in { animation: fade-in 0.4s ease-out forwards; }
-    </style>
-</head>
-<body>
-    <div id="root"></div>
+import React, { useState, useEffect, useCallback } from 'react';
+import { 
+  FlaskConical, 
+  Sparkles, 
+  Coins, 
+  Scroll, 
+  ShoppingBag, 
+  Wand2, 
+  FlameKindling,
+  History,
+  TrendingUp,
+  ArrowRightLeft,
+  Skull,
+  Leaf,
+  ShieldAlert,
+  ChevronRight,
+  User
+} from 'lucide-react';
 
-    <script type="text/babel">
-        const { useState, useEffect, useCallback } = React;
+// --- 定数定義 ---
+const RAW_MATERIALS = [
+  { id: 'red_herb', name: '赤の薬草', basePrice: 40, icon: '🌿', color: 'text-emerald-500' },
+  { id: 'blue_herb', name: '青の薬草', basePrice: 60, icon: '🌱', color: 'text-cyan-500' },
+  { id: 'monster_claw', name: '魔物の爪', basePrice: 150, icon: '🦴', color: 'text-orange-700' },
+  { id: 'magic_water', name: '魔力水', basePrice: 100, icon: '💧', color: 'text-blue-400' },
+];
 
-        // アイコンコンポーネントの定義
-        const LucideIcon = ({ name, size = 20, className = "" }) => {
-            const iconRef = React.useRef(null);
-            useEffect(() => {
-                if (window.lucide) {
-                    window.lucide.createIcons();
-                }
-            });
-            return <i data-lucide={name} className={className} style={{ width: size, height: size }}></i>;
-        };
+const CRAFTED_ITEMS = [
+  { 
+    id: 'hp_potion', 
+    name: '癒やしのポーション', 
+    sellPrice: 250, 
+    icon: '🧪', 
+    recipe: { red_herb: 2, magic_water: 1 },
+    description: '傷を癒やす基本の薬。'
+  },
+  { 
+    id: 'mp_potion', 
+    name: '魔力のポーション', 
+    sellPrice: 350, 
+    icon: '⚗️', 
+    recipe: { blue_herb: 2, magic_water: 1 },
+    description: '魔力を回復させる青い雫。'
+  },
+  { 
+    id: 'strength_elixir', 
+    name: '剛力の霊薬', 
+    sellPrice: 800, 
+    icon: '🍷', 
+    recipe: { monster_claw: 1, red_herb: 1, magic_water: 1 },
+    description: '一時的に筋力を大幅に強化する。'
+  },
+];
 
-        // --- データ定義 (あなたの元のデータをそのまま使用) ---
-        const RAW_MATERIALS = [
-            { id: 'red_herb', name: '赤の薬草', basePrice: 40, icon: '🌿' },
-            { id: 'blue_herb', name: '青の薬草', basePrice: 60, icon: '🌱' },
-            { id: 'monster_claw', name: '魔物の爪', basePrice: 150, icon: '🦴' },
-            { id: 'magic_water', name: '魔力水', basePrice: 100, icon: '💧' },
-        ];
+const UPGRADES = [
+  { id: 'cauldron_v2', name: '銀の錬金釜', cost: 1500, description: '錬金時の成功報酬が10%アップします。' },
+  { id: 'shop_sign', name: '魔法の看板', cost: 800, description: '来客率が上昇します。' },
+];
 
-        const CRAFTED_ITEMS = [
-            { id: 'hp_potion', name: '癒やしのポーション', sellPrice: 250, icon: '🧪', recipe: { red_herb: 2, magic_water: 1 }, description: '傷を癒やす基本の薬。' },
-            { id: 'mp_potion', name: '魔力のポーション', sellPrice: 350, icon: '⚗️', recipe: { blue_herb: 2, magic_water: 1 }, description: '魔力を回復させる青い雫。' },
-            { id: 'strength_elixir', name: '剛力の霊薬', sellPrice: 800, icon: '🍷', recipe: { monster_claw: 1, red_herb: 1, magic_water: 1 }, description: '一時的に筋力を大幅に強化する。' },
-        ];
+const App = () => {
+  // --- 状態管理 ---
+  const [money, setMoney] = useState(1000);
+  const [day, setDay] = useState(1);
+  const [inventory, setInventory] = useState({
+    red_herb: 8, blue_herb: 5, monster_claw: 0, magic_water: 6,
+    hp_potion: 0, mp_potion: 0, strength_elixir: 0
+  });
+  const [marketPrices, setMarketPrices] = useState({});
+  const [logs, setLogs] = useState([]);
+  const [activeTab, setActiveTab] = useState('shop'); // shop, market, alchemy, stats
+  const [reputation, setReputation] = useState(30);
+  const [ownedUpgrades, setOwnedUpgrades] = useState([]);
+  const [customerQueue, setCustomerQueue] = useState([]);
+  const [stats, setStats] = useState({ totalSales: 0, craftedCount: 0 });
 
-        const UPGRADES = [
-            { id: 'cauldron_v2', name: '銀の錬金釜', cost: 1500, description: '錬金時の成功報酬が10%アップします。' },
-            { id: 'shop_sign', name: '魔法の看板', cost: 800, description: '来客率が上昇します。' },
-        ];
+  // --- 初期化 & 日数経過 ---
+  useEffect(() => {
+    const updatePrices = () => {
+      const newPrices = {};
+      RAW_MATERIALS.forEach(item => {
+        const flux = 0.7 + Math.random() * 0.6; // 70% to 130%
+        newPrices[item.id] = Math.floor(item.basePrice * flux);
+      });
+      setMarketPrices(newPrices);
+    };
+    updatePrices();
+  }, [day]);
 
-        function App() {
-            // --- 状態管理 (あなたの元のロジック) ---
-            const [money, setMoney] = useState(1000);
-            const [day, setDay] = useState(1);
-            const [inventory, setInventory] = useState({ red_herb: 8, blue_herb: 5, monster_claw: 0, magic_water: 6, hp_potion: 0, mp_potion: 0, strength_elixir: 0 });
-            const [marketPrices, setMarketPrices] = useState({});
-            const [logs, setLogs] = useState([]);
-            const [activeTab, setActiveTab] = useState('shop');
-            const [reputation, setReputation] = useState(30);
-            const [ownedUpgrades, setOwnedUpgrades] = useState([]);
-            const [customerQueue, setCustomerQueue] = useState([]);
-            const [stats, setStats] = useState({ totalSales: 0, craftedCount: 0 });
+  const addLog = useCallback((msg, type = 'info') => {
+    setLogs(prev => [{ id: Date.now(), msg, type, time: new Date().toLocaleTimeString() }, ...prev].slice(0, 30));
+  }, []);
 
-            const addLog = useCallback((msg, type = 'info') => {
-                setLogs(prev => [{ id: Date.now(), msg, type, time: new Date().toLocaleTimeString() }, ...prev].slice(0, 30));
-            }, []);
+  // --- 来客ロジック ---
+  useEffect(() => {
+    const rate = ownedUpgrades.includes('shop_sign') ? 0.45 : 0.3;
+    const interval = setInterval(() => {
+      if (Math.random() < rate + (reputation / 250)) {
+        const allPossible = [...RAW_MATERIALS, ...CRAFTED_ITEMS];
+        const wanted = allPossible[Math.floor(Math.random() * allPossible.length)];
+        setCustomerQueue(prev => [...prev, { 
+          id: Date.now(), 
+          want: wanted.id, 
+          name: `冒険者 ${['アルス', 'ゼノン', 'リナ', 'カイル', 'ミラ', 'ファル', 'シオン'][Math.floor(Math.random()*7)]} #${Math.floor(Math.random()*999)}` 
+        }]);
+      }
+    }, 4500);
+    return () => clearInterval(interval);
+  }, [reputation, ownedUpgrades]);
 
-            // 価格更新
-            useEffect(() => {
-                const newPrices = {};
-                RAW_MATERIALS.forEach(item => {
-                    const flux = 0.7 + Math.random() * 0.6;
-                    newPrices[item.id] = Math.floor(item.basePrice * flux);
-                });
-                setMarketPrices(newPrices);
-            }, [day]);
-
-            // 来客システム
-            useEffect(() => {
-                const rate = ownedUpgrades.includes('shop_sign') ? 0.45 : 0.3;
-                const interval = setInterval(() => {
-                    if (Math.random() < rate + (reputation / 250)) {
-                        const allPossible = [...RAW_MATERIALS, ...CRAFTED_ITEMS];
-                        const wanted = allPossible[Math.floor(Math.random() * allPossible.length)];
-                        setCustomerQueue(prev => [...prev, { id: Date.now(), want: wanted.id, name: `冒険者 #${Math.floor(Math.random()*999)}` }]);
-                    }
-                }, 4500);
-                return () => clearInterval(interval);
-            }, [reputation, ownedUpgrades]);
-
-            // 販売処理
-            useEffect(() => {
-                if (customerQueue.length > 0) {
-                    const customer = customerQueue[0];
-                    const timer = setTimeout(() => {
-                        const itemData = [...RAW_MATERIALS, ...CRAFTED_ITEMS].find(i => i.id === customer.want);
-                        if (inventory[customer.want] > 0) {
-                            const price = itemData.sellPrice || Math.floor(itemData.basePrice * 1.5);
-                            setInventory(prev => ({ ...prev, [customer.want]: prev[customer.want] - 1 }));
-                            setMoney(prev => prev + price);
-                            setReputation(prev => Math.min(prev + 0.8, 100));
-                            setStats(prev => ({ ...prev, totalSales: prev.totalSales + price }));
-                            addLog(`${customer.name}に${itemData.name}を売却。金貨 ${price} 枚受領。`, 'success');
-                        } else {
-                            setReputation(prev => Math.max(prev - 1.5, 0));
-                            addLog(`${customer.name}は失望して帰りました...`, 'error');
-                        }
-                        setCustomerQueue(prev => prev.slice(1));
-                    }, 2000);
-                    return () => clearTimeout(timer);
-                }
-            }, [customerQueue, inventory, addLog]);
-
-            const handleBuy = (itemId, amount) => {
-                const cost = marketPrices[itemId] * amount;
-                if (money >= cost) {
-                    setMoney(m => m - cost);
-                    setInventory(prev => ({ ...prev, [itemId]: prev[itemId] + amount }));
-                    addLog(`${itemId} を ${amount}個 仕入れました。`, 'buy');
-                }
-            };
-
-            const handleCraft = (potionId) => {
-                const potion = CRAFTED_ITEMS.find(p => p.id === potionId);
-                const canCraft = Object.entries(potion.recipe).every(([id, count]) => inventory[id] >= count);
-                if (canCraft) {
-                    const newInv = { ...inventory };
-                    Object.entries(potion.recipe).forEach(([id, count]) => newInv[id] -= count);
-                    newInv[potionId] += 1;
-                    setInventory(newInv);
-                    setStats(s => ({ ...s, craftedCount: s.craftedCount + 1 }));
-                    addLog(`${potion.name} を調合しました！`, 'craft');
-                }
-            };
-
-            return (
-                <div className="flex h-screen w-full">
-                    {/* サイドナビ */}
-                    <aside className="w-64 bg-[#efe2d0] border-r-4 border-[#3e2723] flex flex-col shadow-2xl">
-                        <div className="p-8 text-center border-b border-black/10">
-                            <h1 className="text-2xl font-cinzel font-black text-amber-900">ALCHEMY</h1>
-                        </div>
-                        <nav className="flex-1 py-4">
-                            {['shop', 'market', 'alchemy', 'stats'].map(tab => (
-                                <button key={tab} onClick={() => setActiveTab(tab)} className={`w-full p-4 font-cinzel font-bold text-left px-8 ${activeTab === tab ? 'bg-amber-900 text-white' : 'text-amber-900/60'}`}>
-                                    {tab.toUpperCase()}
-                                </button>
-                            ))}
-                        </nav>
-                        <div className="p-6 border-t border-black/10">
-                            <p className="text-[10px] uppercase font-bold opacity-40">Gold</p>
-                            <p className="text-2xl font-cinzel font-bold">💰 {money.toLocaleString()}</p>
-                        </div>
-                    </aside>
-
-                    {/* メインエリア */}
-                    <main className="flex-1 flex flex-col bg-[#fdfaf6] overflow-hidden">
-                        <header className="h-20 border-b flex items-center justify-between px-10 bg-white/50">
-                            <div className="flex gap-8 items-center">
-                                <span className="font-cinzel font-bold text-2xl">Day {day}</span>
-                                <span className="text-xs font-bold opacity-40 uppercase">Reputation: {reputation.toFixed(0)}%</span>
-                            </div>
-                            <button onClick={() => setDay(d => d + 1)} className="bg-amber-900 text-white px-8 py-2 font-cinzel font-bold hover:bg-black transition">Next Day</button>
-                        </header>
-
-                        <div className="flex-1 p-10 overflow-y-auto custom-scrollbar">
-                            {activeTab === 'shop' && (
-                                <div className="animate-in space-y-10">
-                                    <div className="grid grid-cols-3 gap-6">
-                                        {[...RAW_MATERIALS, ...CRAFTED_ITEMS].map(item => (
-                                            <div key={item.id} className="bg-white p-6 border-2 border-amber-100 shadow-sm relative group">
-                                                <span className="text-4xl">{item.icon}</span>
-                                                <p className="text-xs font-bold opacity-40 mt-2">{item.name}</p>
-                                                <p className="text-3xl font-cinzel font-black">{inventory[item.id] || 0}</p>
-                                            </div>
-                                        ))}
-                                    </div>
-                                    <div className="space-y-4">
-                                        <h3 className="font-cinzel font-bold text-amber-900/40 uppercase tracking-widest text-sm">Waiting Customers</h3>
-                                        {customerQueue.map((c, i) => (
-                                            <div key={c.id} className={`p-4 bg-white border-l-4 shadow-sm flex justify-between ${i===0?'border-amber-600':'border-slate-200 opacity-40'}`}>
-                                                <span className="font-bold">{c.name}</span>
-                                                <span className="bg-amber-50 px-3 py-1 text-xs font-bold border border-amber-200">Request: {c.want}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {activeTab === 'market' && (
-                                <div className="animate-in space-y-4">
-                                    {RAW_MATERIALS.map(item => (
-                                        <div key={item.id} className="bg-white p-6 border flex justify-between items-center group hover:border-amber-400 transition">
-                                            <div className="flex items-center gap-4">
-                                                <span className="text-4xl">{item.icon}</span>
-                                                <span className="text-xl font-bold font-cinzel">{item.name} (G {marketPrices[item.id]})</span>
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <button onClick={() => handleBuy(item.id, 1)} className="border-2 border-amber-900 px-4 py-1 font-bold">x1</button>
-                                                <button onClick={() => handleBuy(item.id, 10)} className="bg-amber-900 text-white px-4 py-1 font-bold">x10</button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-
-                            {activeTab === 'alchemy' && (
-                                <div className="animate-in space-y-6">
-                                    {CRAFTED_ITEMS.map(potion => {
-                                        const can = Object.entries(potion.recipe).every(([id, count]) => inventory[id] >= count);
-                                        return (
-                                            <div key={potion.id} className={`p-8 border-2 transition ${can ? 'bg-white border-indigo-200' : 'bg-slate-50 opacity-60'}`}>
-                                                <div className="flex justify-between items-center mb-6">
-                                                    <div className="flex gap-4 items-center">
-                                                        <span className="text-5xl">{potion.icon}</span>
-                                                        <div>
-                                                            <h3 className="text-xl font-cinzel font-black">{potion.name}</h3>
-                                                            <p className="text-xs italic">{potion.description}</p>
-                                                        </div>
-                                                    </div>
-                                                    <button onClick={() => handleCraft(potion.id)} disabled={!can} className={`px-8 py-3 font-cinzel font-bold ${can?'bg-indigo-900 text-white shadow-[4px_4px_0_#1e1b4b]':'bg-slate-200'}`}>調合</button>
-                                                </div>
-                                                <div className="flex gap-4">
-                                                    {Object.entries(potion.recipe).map(([id, count]) => (
-                                                        <span key={id} className={`text-[10px] font-bold px-2 py-1 rounded border ${inventory[id]>=count?'bg-emerald-50 text-emerald-700':'bg-red-50 text-red-700'}`}>{id} x{count}</span>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
-
-                            {activeTab === 'stats' && (
-                                <div className="animate-in space-y-8">
-                                    <div className="grid grid-cols-2 gap-6">
-                                        <div className="bg-white p-8 border-2 border-amber-100 shadow-xl">
-                                            <p className="text-[10px] font-bold opacity-40 uppercase">Total Sales</p>
-                                            <p className="text-4xl font-cinzel font-black">G {stats.totalSales}</p>
-                                        </div>
-                                        <div className="bg-white p-8 border-2 border-indigo-100 shadow-xl">
-                                            <p className="text-[10px] font-bold opacity-40 uppercase">Crafted Count</p>
-                                            <p className="text-4xl font-cinzel font-black">{stats.craftedCount} times</p>
-                                        </div>
-                                    </div>
-                                    <div className="bg-amber-900/5 p-8 border-2 border-dashed border-amber-900/10">
-                                        <h3 className="font-cinzel font-bold mb-4 uppercase">Atelier Upgrades</h3>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            {UPGRADES.map(u => (
-                                                <button key={u.id} disabled={ownedUpgrades.includes(u.id) || money < u.cost} 
-                                                    onClick={() => { setMoney(m=>m-u.cost); setOwnedUpgrades(p=>[...p, u.id]); addLog(`${u.name} 導入！`, 'success'); }}
-                                                    className={`p-4 border-2 text-left transition ${ownedUpgrades.includes(u.id)?'bg-emerald-50 border-emerald-200':'bg-white hover:border-amber-400'}`}>
-                                                    <p className="font-bold text-sm">{u.name}</p>
-                                                    <p className="text-[10px] opacity-60 mt-1">{u.description}</p>
-                                                    <p className="mt-4 font-cinzel text-xs font-bold">{ownedUpgrades.includes(u.id)?'INSTALLED':`G ${u.cost}`}</p>
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </main>
-
-                    {/* 履歴ログ */}
-                    <aside className="w-80 bg-[#efe2d0] border-l-4 border-[#3e2723] flex flex-col">
-                        <div className="p-6 bg-[#3e2723] text-amber-100 font-cinzel font-bold text-sm tracking-widest uppercase flex items-center gap-2">
-                             Chronicle
-                        </div>
-                        <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar bg-[#f4ece1]/50 text-xs">
-                            {logs.map(log => (
-                                <div key={log.id} className="border-b border-black/5 pb-2 animate-in">
-                                    <div className="flex justify-between opacity-40 text-[9px] mb-1"><span>{log.time}</span></div>
-                                    <p className={`${log.type==='error'?'text-red-600':log.type==='success'?'text-emerald-700':''}`}>{log.msg}</p>
-                                </div>
-                            ))}
-                        </div>
-                    </aside>
-                </div>
-            );
+  // --- 販売処理 ---
+  useEffect(() => {
+    if (customerQueue.length > 0) {
+      const customer = customerQueue[0];
+      const timer = setTimeout(() => {
+        const itemData = [...RAW_MATERIALS, ...CRAFTED_ITEMS].find(i => i.id === customer.want);
+        
+        if (inventory[customer.want] > 0) {
+          const price = itemData.sellPrice || Math.floor(itemData.basePrice * 1.5);
+          setInventory(prev => ({ ...prev, [customer.want]: prev[customer.want] - 1 }));
+          setMoney(prev => prev + price);
+          setReputation(prev => Math.min(prev + 0.8, 100));
+          setStats(prev => ({ ...prev, totalSales: prev.totalSales + price }));
+          addLog(`${customer.name}に${itemData.name}を売却。金貨 ${price} 枚を受け取りました。`, 'success');
+        } else {
+          setReputation(prev => Math.max(prev - 1.5, 0));
+          addLog(`${customer.name}は「${itemData.name}」がないことに失望して帰っていきました...`, 'error');
         }
+        setCustomerQueue(prev => prev.slice(1));
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [customerQueue, inventory, addLog]);
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
-</body>
-</html>
+  // --- アクション ---
+  const handleBuy = (itemId, amount) => {
+    const cost = marketPrices[itemId] * amount;
+    if (money >= cost) {
+      setMoney(prev => prev - cost);
+      setInventory(prev => ({ ...prev, [itemId]: prev[itemId] + amount }));
+      addLog(`${RAW_MATERIALS.find(i => i.id === itemId).name} ×${amount} を仕入れました。`, 'buy');
+    } else {
+      addLog('金貨が足りません。魔法でもお金は増やせませんよ。', 'error');
+    }
+  };
+
+  const handleCraft = (potionId) => {
+    const potion = CRAFTED_ITEMS.find(p => p.id === potionId);
+    let canCraft = true;
+    Object.entries(potion.recipe).forEach(([ingId, count]) => {
+      if ((inventory[ingId] || 0) < count) canCraft = false;
+    });
+
+    if (canCraft) {
+      const bonus = ownedUpgrades.includes('cauldron_v2') ? 1 : 0;
+      const newInv = { ...inventory };
+      Object.entries(potion.recipe).forEach(([ingId, count]) => {
+        newInv[ingId] -= count;
+      });
+      newInv[potionId] += 1;
+      setInventory(newInv);
+      setStats(prev => ({ ...prev, craftedCount: prev.craftedCount + 1 }));
+      addLog(`錬金成功！ 完璧な「${potion.name}」の完成です。`, 'craft');
+    } else {
+      addLog('素材が不足しています。市場へ行きましょう。', 'error');
+    }
+  };
+
+  // --- サブコンポーネント ---
+  const NavItem = ({ id, label, icon: Icon }) => (
+    <button
+      onClick={() => setActiveTab(id)}
+      className={`w-full flex items-center gap-4 py-4 px-6 transition-all relative ${
+        activeTab === id 
+        ? 'bg-amber-900 text-amber-100 shadow-lg' 
+        : 'text-amber-900/60 hover:bg-amber-900/5'
+      }`}
+    >
+      <Icon size={22} />
+      <span className="font-cinzel font-bold tracking-widest text-sm">{label}</span>
+      {activeTab === id && (
+        <div className="absolute right-0 top-1/2 -translate-y-1/2 border-y-[12px] border-y-transparent border-r-[12px] border-r-[#fdfaf6]" />
+      )}
+    </button>
+  );
+
+  return (
+    <div className="w-full min-h-screen bg-[#f4ece1] text-[#3e2723] font-serif selection:bg-amber-200 flex overflow-hidden">
+      <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Quattrocento:wght@400;700&display=swap" rel="stylesheet" />
+      
+      {/* サイドナビゲーション */}
+      <aside className="w-64 bg-[#efe2d0] border-r-4 border-[#3e2723] flex flex-col z-20 shadow-2xl">
+        <div className="p-8 border-b-2 border-[#3e2723]/10 text-center">
+          <h1 className="text-2xl font-black font-cinzel text-amber-900 leading-none">ALCHEMY</h1>
+          <p className="text-[10px] tracking-[0.3em] font-bold text-amber-800/40 mt-1 uppercase">Atelier</p>
+        </div>
+        
+        <nav className="flex-1 py-8">
+          <NavItem id="shop" label="Shop Floor" icon={ShoppingBag} />
+          <NavItem id="market" label="Guild Market" icon={ArrowRightLeft} />
+          <NavItem id="alchemy" label="The Cauldron" icon={FlaskConical} />
+          <NavItem id="stats" label="Ledger" icon={Scroll} />
+        </nav>
+
+        <div className="p-6 bg-amber-900/5 border-t-2 border-[#3e2723]/10">
+          <div className="flex items-center gap-3 mb-2">
+            <Coins className="text-amber-600" size={18} />
+            <span className="font-cinzel font-bold text-lg">{money.toLocaleString()}</span>
+          </div>
+          <p className="text-[10px] font-bold text-amber-800/40 uppercase tracking-tighter">Gold Reserves</p>
+        </div>
+      </aside>
+
+      {/* メインコンテンツエリア */}
+      <main className="flex-1 flex flex-col relative min-w-0 bg-[#fdfaf6]">
+        
+        {/* トップバー */}
+        <header className="h-20 border-b-2 border-[#3e2723]/10 flex items-center justify-between px-10 bg-white/50 backdrop-blur-sm z-10">
+          <div className="flex items-center gap-8">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Day</span>
+              <span className="text-2xl font-cinzel font-black text-amber-900">{day}</span>
+            </div>
+            <div className="h-8 w-px bg-slate-200" />
+            <div className="flex items-center gap-2">
+              <TrendingUp size={16} className="text-blue-500" />
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Reputation</span>
+              <span className="text-lg font-bold text-slate-700">{reputation.toFixed(0)}%</span>
+            </div>
+          </div>
+          
+          <button 
+            onClick={() => setDay(d => d + 1)}
+            className="group flex items-center gap-3 bg-amber-900 text-amber-100 px-8 py-3 font-cinzel font-bold hover:bg-black transition-all shadow-lg hover:shadow-xl active:translate-y-1"
+          >
+            Dawn of Next Day <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
+          </button>
+        </header>
+
+        {/* コンテンツパネル */}
+        <div className="flex-1 overflow-y-auto p-10 custom-scrollbar">
+          
+          <div className="max-w-4xl mx-auto">
+            {activeTab === 'shop' && (
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-10">
+                <div className="flex items-center justify-between border-b-2 border-amber-900/10 pb-4">
+                  <h2 className="text-3xl font-cinzel font-bold">The Counter</h2>
+                  <p className="text-sm italic text-amber-800/60">"冒険者たちはあなたの秘薬を待っています..."</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {[...RAW_MATERIALS, ...CRAFTED_ITEMS].map(item => (
+                    <div key={item.id} className="bg-white border-2 border-amber-100 p-6 shadow-sm hover:shadow-md hover:border-amber-400 transition-all group overflow-hidden relative">
+                      <div className="flex items-center gap-4 relative z-10">
+                        <span className="text-5xl group-hover:scale-110 transition-transform duration-500">{item.icon}</span>
+                        <div>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{item.name}</p>
+                          <p className="text-3xl font-black font-cinzel text-slate-800">{inventory[item.id] || 0}</p>
+                        </div>
+                      </div>
+                      <div className="absolute -right-4 -bottom-4 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity">
+                        <Sparkles size={80} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-bold text-amber-900/40 mb-6 uppercase tracking-[0.3em] flex items-center gap-2">
+                    <User size={16} /> Travelers in Waiting
+                  </h3>
+                  <div className="space-y-4">
+                    {customerQueue.length === 0 ? (
+                      <div className="h-32 flex flex-col items-center justify-center border-4 border-dotted border-amber-900/5 text-slate-300">
+                        <ShoppingBag size={32} className="mb-2 opacity-20" />
+                        <p className="italic">店内に静寂が満ちている...</p>
+                      </div>
+                    ) : (
+                      customerQueue.map((c, idx) => (
+                        <div key={c.id} className={`p-5 bg-white border-l-8 shadow-sm flex justify-between items-center transition-all ${idx === 0 ? 'border-amber-600 translate-x-2' : 'border-slate-200 opacity-40 scale-95'}`}>
+                          <div>
+                            <span className="font-bold text-lg block">{c.name}</span>
+                            <span className="text-[10px] text-slate-400 uppercase font-bold">希望の品を探索中...</span>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <div className="text-right">
+                              <span className="text-xs text-slate-400 block font-bold uppercase">Requested</span>
+                              <span className="bg-amber-50 text-amber-900 px-4 py-1 rounded-sm border border-amber-100 font-bold flex items-center gap-2">
+                                {[...RAW_MATERIALS, ...CRAFTED_ITEMS].find(i => i.id === c.want).icon} 
+                                {[...RAW_MATERIALS, ...CRAFTED_ITEMS].find(i => i.id === c.want).name}
+                              </span>
+                            </div>
+                            {idx === 0 && <div className="w-2 h-2 rounded-full bg-amber-600 animate-ping" />}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'market' && (
+              <div className="animate-in fade-in slide-in-from-right-4 duration-500 space-y-8">
+                <div className="flex items-center justify-between border-b-2 border-amber-900/10 pb-4">
+                  <h2 className="text-3xl font-cinzel font-bold">Guild Market</h2>
+                  <div className="flex items-center gap-2 text-amber-600 bg-amber-50 px-4 py-1 rounded-full text-xs font-bold border border-amber-100 uppercase tracking-widest">
+                    <ShieldAlert size={14} /> 毎日価格変動
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4">
+                  {RAW_MATERIALS.map(item => (
+                    <div key={item.id} className="bg-white border-2 border-amber-50 p-6 flex items-center justify-between group hover:shadow-xl hover:border-amber-200 transition-all">
+                      <div className="flex items-center gap-6">
+                        <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center text-5xl group-hover:rotate-12 transition-transform">
+                          {item.icon}
+                        </div>
+                        <div>
+                          <p className="font-black text-2xl font-cinzel text-slate-800">{item.name}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Coins size={16} className="text-amber-600" />
+                            <span className="text-xl font-black text-amber-700 font-cinzel">Price: {marketPrices[item.id] || '---'}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex gap-4">
+                        <button 
+                          onClick={() => handleBuy(item.id, 1)} 
+                          className="bg-slate-50 border border-slate-200 hover:bg-white p-4 font-cinzel font-bold px-8 shadow-sm active:scale-95 transition-all"
+                        >
+                          × 1
+                        </button>
+                        <button 
+                          onClick={() => handleBuy(item.id, 10)} 
+                          className="bg-amber-900 text-amber-100 hover:bg-black p-4 font-cinzel font-bold px-8 shadow-lg active:scale-95 transition-all"
+                        >
+                          × 10
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'alchemy' && (
+              <div className="animate-in zoom-in-95 duration-700 space-y-8">
+                <div className="text-center py-6 bg-indigo-950/5 border-2 border-indigo-900/20 rounded-lg relative overflow-hidden">
+                  <div className="relative z-10">
+                    <h2 className="text-3xl font-cinzel font-bold text-indigo-950">Mystic Cauldron</h2>
+                    <p className="text-xs font-bold text-indigo-700/50 uppercase tracking-[0.4em] mt-1">錬金釜の熱気を感じる...</p>
+                  </div>
+                  <FlaskConical className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-indigo-900 opacity-[0.03] scale-[4]" />
+                </div>
+
+                <div className="grid grid-cols-1 gap-6">
+                  {CRAFTED_ITEMS.map(potion => {
+                    const canCraft = Object.entries(potion.recipe).every(([id, count]) => inventory[id] >= count);
+                    return (
+                      <div key={potion.id} className={`p-8 border-2 transition-all group ${canCraft ? 'bg-white border-indigo-200 shadow-lg' : 'bg-slate-50/50 border-slate-100 opacity-60'}`}>
+                        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-6">
+                          <div className="flex items-center gap-6">
+                            <span className="text-6xl group-hover:scale-110 transition-transform">{potion.icon}</span>
+                            <div>
+                              <h3 className="font-bold text-2xl font-cinzel text-indigo-950">{potion.name}</h3>
+                              <p className="text-sm italic text-slate-500 mt-1">{potion.description}</p>
+                            </div>
+                          </div>
+                          <button 
+                            disabled={!canCraft}
+                            onClick={() => handleCraft(potion.id)}
+                            className={`px-12 py-4 font-cinzel font-bold text-lg transition-all ${
+                              canCraft 
+                              ? 'bg-indigo-900 text-white hover:bg-indigo-700 shadow-[8px_8px_0px_#1e1b4b] active:translate-y-1 active:shadow-none' 
+                              : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                            }`}
+                          >
+                            調合を開始
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap gap-3 pt-6 border-t border-indigo-50">
+                          {Object.entries(potion.recipe).map(([ingId, count]) => {
+                            const ing = RAW_MATERIALS.find(r => r.id === ingId);
+                            const hasEnough = (inventory[ingId] || 0) >= count;
+                            return (
+                              <div key={ingId} className={`text-xs font-bold px-4 py-2 rounded-sm border flex items-center gap-2 ${hasEnough ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-red-50 border-red-100 text-red-700'}`}>
+                                <span className="text-xl">{ing.icon}</span>
+                                <span>{ing.name} ×{count}</span>
+                                <span className="opacity-50">(保有: {inventory[ingId] || 0})</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'stats' && (
+              <div className="animate-in fade-in duration-500 space-y-12">
+                <h2 className="text-3xl font-cinzel font-bold border-b-2 border-amber-900/10 pb-4 uppercase tracking-wider">Business Ledger</h2>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="p-10 bg-white border-2 border-amber-100 shadow-xl relative overflow-hidden group">
+                    <p className="text-[10px] font-bold text-amber-800/40 uppercase tracking-[0.3em] mb-2">Cumulative Revenue</p>
+                    <p className="text-5xl font-black font-cinzel text-amber-900 leading-tight">金貨 {stats.totalSales.toLocaleString()} 枚</p>
+                    <TrendingUp className="absolute -right-4 -bottom-4 text-amber-900 opacity-[0.03] scale-[4] group-hover:scale-[4.5] transition-transform" />
+                  </div>
+                  <div className="p-10 bg-white border-2 border-indigo-100 shadow-xl relative overflow-hidden group">
+                    <p className="text-[10px] font-bold text-indigo-800/40 uppercase tracking-[0.3em] mb-2">Masterful Concoctions</p>
+                    <p className="text-5xl font-black font-cinzel text-indigo-900 leading-tight">{stats.craftedCount} 回</p>
+                    <FlaskConical className="absolute -right-4 -bottom-4 text-indigo-900 opacity-[0.03] scale-[4] group-hover:scale-[4.5] transition-transform" />
+                  </div>
+                </div>
+
+                <div className="bg-[#efe2d0]/30 p-8 rounded-lg border-2 border-[#3e2723]/5">
+                  <h3 className="text-xl font-cinzel font-bold mb-6 flex items-center gap-3">
+                    <FlameKindling className="text-amber-700" size={24} /> Atelier Upgrades
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {UPGRADES.map(u => {
+                      const owned = ownedUpgrades.includes(u.id);
+                      return (
+                        <div key={u.id} className={`p-6 border-2 transition-all flex flex-col justify-between ${owned ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-slate-100'}`}>
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <p className="font-bold text-lg font-cinzel">{u.name}</p>
+                              {owned && <Sparkles size={16} className="text-emerald-500" />}
+                            </div>
+                            <p className="text-sm text-slate-500 leading-relaxed mb-6">{u.description}</p>
+                          </div>
+                          <button 
+                            disabled={owned || money < u.cost}
+                            onClick={() => {
+                              setMoney(m => m - u.cost);
+                              setOwnedUpgrades(p => [...p, u.id]);
+                              addLog(`設備投資: ${u.name}を導入。お店が一段と立派になりました。`, 'success');
+                            }}
+                            className={`w-full py-3 font-cinzel font-bold tracking-widest transition-all ${
+                              owned 
+                              ? 'text-emerald-600 bg-transparent cursor-default' 
+                              : money >= u.cost 
+                                ? 'bg-amber-900 text-amber-100 hover:bg-black shadow-lg' 
+                                : 'bg-slate-100 text-slate-300 cursor-not-allowed'
+                            }`}
+                          >
+                            {owned ? 'INSTALLED' : `ACQUIRE (金貨 ${u.cost})`}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </main>
+
+      {/* 右サイド: 履歴ログ */}
+      <aside className="w-80 bg-[#efe2d0] border-l-4 border-[#3e2723] flex flex-col z-20 shadow-[-10px_0_30px_rgba(0,0,0,0.05)]">
+        <div className="p-6 bg-[#3e2723] text-amber-100 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <History size={18} className="animate-pulse" />
+            <span className="font-cinzel font-bold tracking-widest uppercase text-sm">Chronicle</span>
+          </div>
+          <span className="text-[10px] opacity-50 font-bold">LIVE</span>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar bg-[#f4ece1]/50 shadow-inner text-sm">
+          {logs.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-4">
+              <Scroll size={48} className="opacity-10" />
+              <p className="italic text-center px-4 uppercase text-[10px] tracking-widest">歴史が始まるのを待っています...</p>
+            </div>
+          ) : (
+            logs.map(log => (
+              <div key={log.id} className="border-b border-[#3e2723]/5 pb-3 animate-in slide-in-from-right-2">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-[9px] text-amber-800/40 font-bold">{log.time}</span>
+                  {log.type === 'craft' && <Sparkles size={10} className="text-indigo-400" />}
+                </div>
+                <p className={`leading-relaxed font-medium ${
+                  log.type === 'error' ? 'text-red-600' : 
+                  log.type === 'success' ? 'text-emerald-700' : 
+                  log.type === 'craft' ? 'text-indigo-700 font-bold' : 
+                  'text-[#3e2723]'
+                }`}>
+                  {log.msg}
+                </p>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="p-6 bg-white/30 border-t-2 border-[#3e2723]/10 text-center">
+          <p className="text-[9px] text-amber-900/40 italic uppercase tracking-[0.2em]">
+            "Potions for the brave, gold for the wise"
+          </p>
+        </div>
+      </aside>
+
+      <style>{`
+        body {
+          font-family: 'Quattrocento', serif;
+          overflow: hidden;
+        }
+        .font-cinzel {
+          font-family: 'Cinzel', serif;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 5px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #d7ccc8;
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #3e2723;
+        }
+        @keyframes fade-in {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        .animate-in {
+          animation: fade-in 0.4s ease-out forwards;
+        }
+      `}</style>
+    </div>
+  );
+};
+
+export default App;
